@@ -21,15 +21,19 @@ import java.util.List;
 @RequestMapping("/api/v1/vnpay")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class VNPayController {
-
     VNPayService vnPayService;
 
     @PostMapping(value = "/create-payment", produces = "application/json;charset=UTF-8", consumes = "application/json")
     public ApiResponse<String> CreatePayment(
-            @RequestBody PaymentRequest paymentRequest, // Nhận dữ liệu từ body JSON
+            @RequestBody PaymentRequest paymentRequest,
             HttpServletRequest request) {
-        String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-        var result = vnPayService.createPayment(paymentRequest.getAmount().intValue(), paymentRequest.getOrderInfo(), baseUrl); // Chuyển BigDecimal thành int
+        String baseUrl = "https://beautya-gr2-production.up.railway.app";
+        var result = vnPayService.createPayment(
+                paymentRequest.getAmount().intValue(),
+                paymentRequest.getOrderInfo(),
+                baseUrl,
+                request
+        );
         return ApiResponse.<String>builder()
                 .message("Create Payment Success")
                 .result(result)
@@ -40,12 +44,14 @@ public class VNPayController {
     public ApiResponse<String> getPaymentInfo(HttpServletRequest request, HttpServletResponse response) {
         return vnPayService.getPaymentInfo(request, response);
     }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<List<PaymentResponse>> getAllPayments() {
         List<PaymentResponse> payments = vnPayService.getAllPayments();
         return ResponseEntity.ok(payments);
     }
+
     @PostMapping(value = "/cash-payment", produces = "application/json;charset=UTF-8", consumes = "application/json")
     @PreAuthorize("hasAnyRole('USER', 'STAFF')")
     public ApiResponse<String> processCashPayment(@RequestBody CashPaymentRequest cashRequest) {
@@ -53,12 +59,13 @@ public class VNPayController {
     }
 }
 
-// DTO để nhận dữ liệu từ body JSON
 @Data
 class PaymentRequest {
-    private BigDecimal amount; // Thay int thành BigDecimal
+    private BigDecimal amount;
     private String orderInfo;
+    private String redirectUrl;
 }
+
 @Data
 class CashPaymentRequest {
     private Long bookingId;

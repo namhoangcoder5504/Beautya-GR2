@@ -1,5 +1,6 @@
 package BookingService.BookingService.configuration;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -12,17 +13,15 @@ import java.util.Map;
 import java.util.Random;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 @Component
 public class VnPayConfiguration {
-    public static String vnp_PayUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"; // ko thay đổi
-    public static String vnp_ReturnURL = "/api/v1/vnpay/payment-info";
-    public static String vnp_TmnCode = "HC2GZLAE"; // terminal code trong mail
-    public static String vnp_HashSecret = "Y10JCFMO86K6E4OZNZ6GPAH6AXV0W241"; // secret key trong mail
-    public static String vnp_apiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"; // ko thay đổi
+    public static String vnp_PayUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    public static String vnp_ReturnURL = "https://beautya-gr2-production.up.railway.app/api/v1/vnpay/payment-info";
+    public static String vnp_TmnCode = "HC2GZLAE";
+    public static String vnp_HashSecret = "Y10JCFMO86K6E4OZNZ6GPAH6AXV0W241";
+    public static String vnp_apiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
 
     public static String Sha256(String message) {
         String digest = null;
@@ -42,7 +41,6 @@ public class VnPayConfiguration {
         return digest;
     }
 
-    // Util for VNPAY
     public static String hashAllFields(Map fields) {
         List fieldNames = new ArrayList(fields.keySet());
         Collections.sort(fieldNames);
@@ -65,7 +63,6 @@ public class VnPayConfiguration {
 
     public static String hmacSHA512(final String key, final String data) {
         try {
-
             if (key == null || data == null) {
                 throw new NullPointerException();
             }
@@ -80,23 +77,22 @@ public class VnPayConfiguration {
                 sb.append(String.format("%02x", b & 0xff));
             }
             return sb.toString();
-
         } catch (Exception ex) {
             return "";
         }
     }
 
     public static String getIpAddress(HttpServletRequest request) {
-        String ipAdress;
+        String ipAddress;
         try {
-            ipAdress = request.getHeader("X-FORWARDED-FOR");
-            if (ipAdress == null) {
-                ipAdress = request.getLocalAddr();
+            ipAddress = request.getHeader("X-FORWARDED-FOR");
+            if (ipAddress == null) {
+                ipAddress = request.getLocalAddr();
             }
         } catch (Exception e) {
-            ipAdress = "Invalid IP:" + e.getMessage();
+            ipAddress = "Invalid IP:" + e.getMessage();
         }
-        return ipAdress;
+        return ipAddress;
     }
 
     public static String getRandomNumber(int len) {
