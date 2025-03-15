@@ -14,7 +14,7 @@
 	<name>Booking_Service</name>
 	<description>Project SWP</description>
 	<properties>
-		<java.version>21</java.version> <!-- Thay đổi từ 23 thành 21 -->
+		<java.version>17</java.version> <!-- Đổi từ 21 thành 17 -->
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 	</properties>
 	<packaging>jar</packaging>
@@ -89,19 +89,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>2.8.5</version>
 		</dependency>
-
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webflux-api</artifactId>
 			<version>2.8.5</version>
 		</dependency>
-
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
@@ -109,10 +106,7 @@
 		</dependency>
 	</dependencies>
 	<build>
-
-		<finalName>
-			booking-service-app
-		</finalName>
+		<finalName>booking-service-app</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
@@ -128,8 +122,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.11.0</version>
 				<configuration>
-					<source>21</source> <!-- Thay đổi từ 23 thành 21 -->
-					<target>21</target> <!-- Thay đổi từ 23 thành 21 -->
+					<source>17</source> <!-- Đổi từ 21 thành 17 -->
+					<target>17</target> <!-- Đổi từ 21 thành 17 -->
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
