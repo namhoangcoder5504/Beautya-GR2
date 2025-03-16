@@ -122,8 +122,10 @@ public class BookingService {
         booking.setTimeSlot(timeSlot);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus(PaymentStatus.PENDING);
-        booking.setCreatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setCreatedAt(currentTime);
+        booking.setUpdatedAt(currentTime);
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -175,7 +177,6 @@ public class BookingService {
         Booking existingBooking = bookingRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_EXISTED));
 
-        // Kiểm tra trạng thái: Chỉ cho phép update nếu là PENDING hoặc CONFIRMED
         if (existingBooking.getStatus() != BookingStatus.PENDING && existingBooking.getStatus() != BookingStatus.CONFIRMED) {
             throw new AppException(ErrorCode.BOOKING_STATUS_INVALID);
         }
@@ -225,7 +226,6 @@ public class BookingService {
             }
             validateAndUpdateSchedule(existingBooking, specialist.getUserId(), request.getBookingDate(), startTime, endTime);
 
-            // Xóa lịch cũ, loại trừ booking hiện tại
             if (!existingBooking.getBookingDate().equals(request.getBookingDate()) ||
                     !existingBooking.getTimeSlot().equals(timeSlot)) {
                 restorePreviousSchedule(existingBooking.getSpecialist().getUserId(),
@@ -237,7 +237,9 @@ public class BookingService {
         existingBooking.setServices(services);
         existingBooking.setBookingDate(request.getBookingDate());
         existingBooking.setTimeSlot(timeSlot);
-        existingBooking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        existingBooking.setUpdatedAt(currentTime);
 
         Booking updatedBooking = bookingRepository.save(existingBooking);
 
@@ -275,10 +277,10 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setUpdatedAt(currentTime);
         bookingRepository.save(booking);
 
-        // Xóa lịch, loại trừ booking hiện tại
         restorePreviousSchedule(booking.getSpecialist().getUserId(), booking.getBookingDate(), booking.getTimeSlot(), bookingId);
 
         String subject = "Xác nhận hủy đặt lịch tại Beautya";
@@ -310,7 +312,8 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setUpdatedAt(currentTime);
         bookingRepository.save(booking);
 
         return bookingMapper.toResponse(booking);
@@ -324,9 +327,10 @@ public class BookingService {
             throw new AppException(ErrorCode.BOOKING_NOT_EXISTED);
         }
 
-        booking.setCheckInTime(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setCheckInTime(currentTime);
         booking.setStatus(BookingStatus.IN_PROGRESS);
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        booking.setUpdatedAt(currentTime);
         bookingRepository.save(booking);
 
         String subject = "Xác nhận Check-in tại Beautya";
@@ -357,9 +361,10 @@ public class BookingService {
         }
 
         booking.setPaymentStatus(payment.getStatus());
-        booking.setCheckOutTime(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setCheckOutTime(currentTime);
         booking.setStatus(BookingStatus.COMPLETED);
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        booking.setUpdatedAt(currentTime);
         bookingRepository.save(booking);
 
         String subject = "Hoàn tất dịch vụ tại Beautya!";
@@ -378,7 +383,6 @@ public class BookingService {
 
         for (User specialist : specialists) {
             if (isSpecialistAvailable(specialist.getUserId(), bookingDate, startTime, endTime)) {
-                System.out.println("Selected specialist ID: " + specialist.getUserId());
                 return specialist;
             }
         }
@@ -399,7 +403,6 @@ public class BookingService {
         boolean isBookingConflict = bookingRepository.existsBySpecialistUserIdAndBookingDateAndTimeSlot(
                 specialistId, bookingDate, timeSlot);
 
-        System.out.println("Specialist ID " + specialistId + ": Schedule conflict=" + isScheduleConflict + ", Booking conflict=" + isBookingConflict);
         return !isScheduleConflict && !isBookingConflict;
     }
 
@@ -455,11 +458,9 @@ public class BookingService {
     }
 
     private void restorePreviousSchedule(Long specialistId, LocalDate date, String timeSlot, Long excludeBookingId) {
-        // Kiểm tra xem có booking nào ở trạng thái PENDING hoặc CONFIRMED (ngoại trừ bookingId được loại trừ) không
         List<BookingStatus> activeStatuses = Arrays.asList(BookingStatus.PENDING, BookingStatus.CONFIRMED);
         boolean bookingExists = bookingRepository.existsBySpecialistUserIdAndBookingDateAndTimeSlotAndStatusInAndBookingIdNot(
                 specialistId, date, timeSlot, activeStatuses, excludeBookingId);
-        System.out.println("Booking exists (PENDING or CONFIRMED, excluding booking ID " + excludeBookingId + "): " + bookingExists);
 
         if (!bookingExists) {
             List<Schedule> schedules = scheduleRepository.findBySpecialistUserIdAndDate(specialistId, date);
@@ -469,13 +470,8 @@ public class BookingService {
 
             if (oldSchedule.isPresent()) {
                 Schedule schedule = oldSchedule.get();
-                scheduleRepository.delete(schedule); // Xóa lịch
-                System.out.println("Schedule " + schedule.getScheduleId() + " has been deleted");
-            } else {
-                System.out.println("No schedule found for specialist " + specialistId + " on " + date + " with timeSlot " + timeSlot);
+                scheduleRepository.delete(schedule);
             }
-        } else {
-            System.out.println("Cannot delete schedule due to existing PENDING or CONFIRMED booking");
         }
     }
 
@@ -549,7 +545,7 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
-    @Scheduled(fixedRate = 300000) // Chạy mỗi 5 phút
+    @Scheduled(fixedRate = 300000)
     public void autoCancelPendingBookings() {
         LocalDateTime threshold = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().minusMinutes(AUTO_CANCEL_MINUTES);
         List<Booking> pendingBookings = bookingRepository.findByStatusAndCreatedAtBefore(
@@ -557,10 +553,10 @@ public class BookingService {
 
         for (Booking booking : pendingBookings) {
             booking.setStatus(BookingStatus.CANCELLED);
-            booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+            LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+            booking.setUpdatedAt(currentTime);
             bookingRepository.save(booking);
 
-            // Xóa lịch, loại trừ booking hiện tại
             restorePreviousSchedule(booking.getSpecialist().getUserId(),
                     booking.getBookingDate(), booking.getTimeSlot(), booking.getBookingId());
 
@@ -576,7 +572,7 @@ public class BookingService {
         }
     }
 
-    @Scheduled(cron = "0 0 1 * * ?") // Chạy lúc 1:00 AM mỗi ngày
+    @Scheduled(cron = "0 0 1 * * ?")
     public void autoCancelExpiredBookings() {
         LocalDate yesterday = ZonedDateTime.now(VIETNAM_ZONE).toLocalDate().minusDays(1);
         List<Booking> expiredBookings = bookingRepository.findByBookingDateBeforeAndStatusIn(
@@ -584,10 +580,10 @@ public class BookingService {
 
         for (Booking booking : expiredBookings) {
             booking.setStatus(BookingStatus.CANCELLED);
-            booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+            LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+            booking.setUpdatedAt(currentTime);
             bookingRepository.save(booking);
 
-            // Xóa lịch, loại trừ booking hiện tại
             restorePreviousSchedule(booking.getSpecialist().getUserId(),
                     booking.getBookingDate(), booking.getTimeSlot(), booking.getBookingId());
 
@@ -699,8 +695,10 @@ public class BookingService {
         booking.setTimeSlot(timeSlot);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus(PaymentStatus.PENDING);
-        booking.setCreatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
-        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+
+        LocalDateTime currentTime = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime();
+        booking.setCreatedAt(currentTime);
+        booking.setUpdatedAt(currentTime);
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -719,60 +717,6 @@ public class BookingService {
         return bookingMapper.toResponse(savedBooking);
     }
 
-    @Scheduled(cron = "0 0 1 * * ?") // Chạy lúc 1:00 AM mỗi ngày
-    public void autoDeleteTemporaryGuests() {
-        LocalDateTime threshold = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().minusDays(1);
-        List<User> expiredGuests = userRepository.findTemporaryGuestsBefore(threshold);
-
-        for (User guest : expiredGuests) {
-            if (!userRepository.hasBookings(guest)) {
-                userRepository.delete(guest);
-            }
-        }
-    }
-
-    // Các phương thức xây dựng email
-    private String buildExpiredBookingEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
-        return "<!DOCTYPE html>" +
-                "<html><head><style>" +
-                "body { font-family: Arial, sans-serif; color: #333; }" +
-                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
-                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
-                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
-                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
-                "</style></head><body>" +
-                "<div class='container'>" +
-                "<div class='header'><h2>Lịch Hẹn Hết Hạn</h2></div>" +
-                "<div class='content'>" +
-                "<p>Xin chào " + customerName + ",</p>" +
-                "<p>Lịch hẹn của bạn với chuyên viên <strong>" + specialistName + "</strong> " +
-                "vào ngày <strong>" + bookingDate + "</strong>, khung giờ <strong>" + timeSlot + "</strong> " +
-                "đã tự động bị hủy vì đã qua ngày thực hiện.</p>" +
-                "<p>Vui lòng đặt lại lịch nếu bạn vẫn muốn sử dụng dịch vụ!</p>" +
-                "</div>" +
-                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
-                "</div></body></html>";
-    }
-
-    private String buildAutoCancelEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
-        return "<!DOCTYPE html>" +
-                "<html><head><style>" +
-                "body { font-family: Arial, sans-serif; color: #333; }" +
-                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
-                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; }" +
-                ".content { padding: 20px; background-color: white; }" +
-                "</style></head><body>" +
-                "<div class='container'>" +
-                "<div class='header'><h2>Lịch Hẹn Hủy Tự Động</h2></div>" +
-                "<div class='content'>" +
-                "<p>Xin chào " + customerName + ",</p>" +
-                "<p>Lịch hẹn của bạn với chuyên viên <strong>" + specialistName + "</strong> " +
-                "vào ngày <strong>" + bookingDate + "</strong>, khung giờ <strong>" + timeSlot + "</strong> " +
-                "đã bị hủy tự động do không được xác nhận hoặc thanh toán trong vòng " + AUTO_CANCEL_MINUTES + " phút.</p>" +
-                "<p>Vui lòng đặt lại lịch nếu cần!</p>" +
-                "</div></div></body></html>";
-    }
-
     private String buildConfirmationEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot, BigDecimal totalPrice) {
         return "<!DOCTYPE html>" +
                 "<html><head><style>" +
@@ -786,56 +730,18 @@ public class BookingService {
                 "<div class='header'><h2>Đặt Lịch Thành Công</h2></div>" +
                 "<div class='content'>" +
                 "<p>Xin chào " + customerName + ",</p>" +
-                "<p>Bạn đã đặt lịch thành công với chuyên viên <strong>" + specialistName + "</strong> vào ngày <strong>" + bookingDate + "</strong>, khung giờ <strong>" + timeSlot + "</strong>.</p>" +
-                "<p><strong>Tổng giá:</strong> " + totalPrice + " VNĐ</p>" +
-                "<p>Chúng tôi rất mong được phục vụ bạn!</p>" +
-                "</div>" +
-                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
-                "</div></body></html>";
-    }
-
-    private String buildUpdateEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
-        return "<!DOCTYPE html>" +
-                "<html><head><style>" +
-                "body { font-family: Arial, sans-serif; color: #333; }" +
-                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
-                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
-                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
-                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
-                "</style></head><body>" +
-                "<div class='container'>" +
-                "<div class='header'><h2>Cập Nhật Lịch Hẹn</h2></div>" +
-                "<div class='content'>" +
-                "<p>Xin chào " + customerName + ",</p>" +
-                "<p>Lịch đặt của bạn với chuyên viên <strong>" + specialistName + "</strong> đã được cập nhật thành công vào ngày <strong>" + bookingDate + "</strong>, khung giờ <strong>" + timeSlot + "</strong>.</p>" +
-                "<p>Cảm ơn bạn đã tin tưởng Beautya!</p>" +
-                "</div>" +
-                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
-                "</div></body></html>";
-    }
-
-    private String buildCancelEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
-        return "<!DOCTYPE html>" +
-                "<html><head><style>" +
-                "body { font-family: Arial, sans-serif; color: #333; }" +
-                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
-                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
-                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
-                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
-                "</style></head><body>" +
-                "<div class='container'>" +
-                "<div class='header'><h2>Hủy Lịch Hẹn</h2></div>" +
-                "<div class='content'>" +
-                "<p>Xin chào " + customerName + ",</p>" +
-                "<p>Lịch hẹn của bạn với chuyên viên <strong>" + specialistName + "</strong> vào ngày <strong>" + bookingDate + "</strong>, khung giờ <strong>" + timeSlot + "</strong> đã được hủy thành công.</p>" +
-                "<p>Nếu bạn có câu hỏi, vui lòng liên hệ với chúng tôi!</p>" +
+                "<p>Bạn đã đặt lịch thành công tại Beautya với chuyên viên <strong>" + specialistName + "</strong>.</p>" +
+                "<p><strong>Ngày:</strong> " + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "</p>" +
+                "<p><strong>Thời gian:</strong> " + timeSlot + "</p>" +
+                "<p><strong>Tổng chi phí:</strong> " + totalPrice + " VNĐ</p>" +
+                "<p>Chúng tôi mong chờ được phục vụ bạn!</p>" +
                 "</div>" +
                 "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
                 "</div></body></html>";
     }
 
     private String buildCheckInEmail(String customerName, String specialistName, LocalDateTime checkInTime) {
-        String formattedCheckInTime = checkInTime.atZone(VIETNAM_ZONE).format(DATE_TIME_FORMATTER);
+        String formattedCheckInTime = checkInTime.format(DATE_TIME_FORMATTER);
         return "<!DOCTYPE html>" +
                 "<html><head><style>" +
                 "body { font-family: Arial, sans-serif; color: #333; }" +
@@ -857,7 +763,7 @@ public class BookingService {
     }
 
     private String buildCheckOutEmail(String customerName, String specialistName, LocalDateTime checkOutTime) {
-        String formattedCheckOutTime = checkOutTime.atZone(VIETNAM_ZONE).format(DATE_TIME_FORMATTER);
+        String formattedCheckOutTime = checkOutTime.format(DATE_TIME_FORMATTER);
         return "<!DOCTYPE html>" +
                 "<html><head><style>" +
                 "body { font-family: Arial, sans-serif; color: #333; }" +
@@ -871,8 +777,97 @@ public class BookingService {
                 "<div class='content'>" +
                 "<p>Xin chào " + customerName + ",</p>" +
                 "<p>Bạn đã hoàn tất dịch vụ tại Beautya với chuyên viên <strong>" + specialistName + "</strong>.</p>" +
-                "<p><strong>Giờ Check-out:</strong> " + formattedCheckOutTime + "</p>" +
-                "<p>Cảm ơn bạn đã tin tưởng Beautya! Nếu bạn muốn, hãy để lại phản hồi tại: <a href='" + feedbackLink + "'>Gửi phản hồi</a></p>" +
+                "<p><strong>Thời gian check-out:</strong> " + formattedCheckOutTime + "</p>" +
+                "<p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>" +
+                "<p>Vui lòng để lại đánh giá tại đây: <a href='" + feedbackLink + "'>Đánh giá</a></p>" +
+                "</div>" +
+                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
+                "</div></body></html>";
+    }
+
+    private String buildUpdateEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
+        return "<!DOCTYPE html>" +
+                "<html><head><style>" +
+                "body { font-family: Arial, sans-serif; color: #333; }" +
+                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
+                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
+                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
+                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
+                "</style></head><body>" +
+                "<div class='container'>" +
+                "<div class='header'><h2>Cập Nhật Đặt Lịch</h2></div>" +
+                "<div class='content'>" +
+                "<p>Xin chào " + customerName + ",</p>" +
+                "<p>Lịch hẹn của bạn tại Beautya với chuyên viên <strong>" + specialistName + "</strong> đã được cập nhật.</p>" +
+                "<p><strong>Ngày:</strong> " + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "</p>" +
+                "<p><strong>Thời gian:</strong> " + timeSlot + "</p>" +
+                "<p>Chúng tôi mong chờ được phục vụ bạn!</p>" +
+                "</div>" +
+                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
+                "</div></body></html>";
+    }
+
+    private String buildCancelEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
+        return "<!DOCTYPE html>" +
+                "<html><head><style>" +
+                "body { font-family: Arial, sans-serif; color: #333; }" +
+                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
+                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
+                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
+                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
+                "</style></head><body>" +
+                "<div class='container'>" +
+                "<div class='header'><h2>Hủy Đặt Lịch</h2></div>" +
+                "<div class='content'>" +
+                "<p>Xin chào " + customerName + ",</p>" +
+                "<p>Lịch hẹn của bạn tại Beautya với chuyên viên <strong>" + specialistName + "</strong> đã được hủy.</p>" +
+                "<p><strong>Ngày:</strong> " + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "</p>" +
+                "<p><strong>Thời gian:</strong> " + timeSlot + "</p>" +
+                "<p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi!</p>" +
+                "</div>" +
+                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
+                "</div></body></html>";
+    }
+
+    private String buildAutoCancelEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
+        return "<!DOCTYPE html>" +
+                "<html><head><style>" +
+                "body { font-family: Arial, sans-serif; color: #333; }" +
+                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
+                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
+                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
+                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
+                "</style></head><body>" +
+                "<div class='container'>" +
+                "<div class='header'><h2>Lịch Hẹn Hủy Tự Động</h2></div>" +
+                "<div class='content'>" +
+                "<p>Xin chào " + customerName + ",</p>" +
+                "<p>Lịch hẹn của bạn tại Beautya với chuyên viên <strong>" + specialistName + "</strong> đã bị hủy tự động do quá thời gian xác nhận.</p>" +
+                "<p><strong>Ngày:</strong> " + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "</p>" +
+                "<p><strong>Thời gian:</strong> " + timeSlot + "</p>" +
+                "<p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi!</p>" +
+                "</div>" +
+                "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
+                "</div></body></html>";
+    }
+
+    private String buildExpiredBookingEmail(String customerName, String specialistName, LocalDate bookingDate, String timeSlot) {
+        return "<!DOCTYPE html>" +
+                "<html><head><style>" +
+                "body { font-family: Arial, sans-serif; color: #333; }" +
+                ".container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }" +
+                ".header { background-color: #ff7e9d; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }" +
+                ".content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }" +
+                ".footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }" +
+                "</style></head><body>" +
+                "<div class='container'>" +
+                "<div class='header'><h2>Lịch Hẹn Hết Hạn</h2></div>" +
+                "<div class='content'>" +
+                "<p>Xin chào " + customerName + ",</p>" +
+                "<p>Lịch hẹn của bạn tại Beautya với chuyên viên <strong>" + specialistName + "</strong> đã tự động bị hủy do đã qua ngày thực hiện.</p>" +
+                "<p><strong>Ngày:</strong> " + bookingDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "</p>" +
+                "<p><strong>Thời gian:</strong> " + timeSlot + "</p>" +
+                "<p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi!</p>" +
                 "</div>" +
                 "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
                 "</div></body></html>";
