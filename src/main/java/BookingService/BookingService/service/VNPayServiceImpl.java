@@ -147,6 +147,9 @@ public class VNPayServiceImpl implements VNPayService {
             paymentRepository.save(existingPayment);
         }
 
+        // Thêm log để kiểm tra thời gian thực tế
+        log.info("Server TimeZone: {}", TimeZone.getDefault().getID());
+        log.info("Current Time (Asia/Ho_Chi_Minh): {}", now);
         log.info("vnp_CreateDate: {}", vnp_CreateDate);
         log.info("vnp_ExpireDate: {}", vnp_ExpireDate);
         log.info("vnp_ReturnUrl: {}", vnp_Params.get("vnp_ReturnUrl"));

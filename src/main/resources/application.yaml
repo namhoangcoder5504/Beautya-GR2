@@ -42,6 +42,10 @@ spring:
             token-uri: https://oauth2.googleapis.com/token
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: email
+  # Thêm cấu hình JVM timezone
+  jvm:
+    args: "-Duser.timezone=Asia/Ho_Chi_Minh"
+
 jwt:
   signerKey: "3aF+lAiyA/tEAeeBtmlou0RwdTwXx0lU6SjH0MYBR7DRt9vyJzlv66uqnqHMP2NW"
   valid-duration: 3600
