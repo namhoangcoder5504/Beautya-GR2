@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.*;
-import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
@@ -34,9 +33,11 @@ import java.util.stream.Collectors;
 @Transactional
 public class BookingService {
 
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final int MAX_SERVICES_PER_BOOKING = 3;
     private static final long MIN_CANCEL_HOURS = 24;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final LocalTime OPENING_TIME = LocalTime.of(8, 0); // 8:00 AM
     private static final LocalTime CLOSING_TIME = LocalTime.of(20, 0); // 8:00 PM
     private static final int MAX_BOOKING_DAYS_IN_ADVANCE = 7;
@@ -85,8 +86,8 @@ public class BookingService {
         }
 
         LocalDateTime bookingDateTime = LocalDateTime.of(request.getBookingDate(), startTime);
-        LocalDateTime maxBookingDate = LocalDateTime.now().plusDays(MAX_BOOKING_DAYS_IN_ADVANCE);
-        if (bookingDateTime.isBefore(LocalDateTime.now())) {
+        LocalDateTime maxBookingDate = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().plusDays(MAX_BOOKING_DAYS_IN_ADVANCE);
+        if (bookingDateTime.isBefore(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime())) {
             throw new AppException(ErrorCode.BOOKING_DATE_IN_PAST);
         }
         if (bookingDateTime.isAfter(maxBookingDate)) {
@@ -121,8 +122,8 @@ public class BookingService {
         booking.setTimeSlot(timeSlot);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus(PaymentStatus.PENDING);
-        booking.setCreatedAt(LocalDateTime.now());
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setCreatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -195,7 +196,7 @@ public class BookingService {
         String timeSlot = request.getStartTime() + "-" + endTime.format(TIME_FORMATTER);
 
         LocalDateTime bookingDateTime = LocalDateTime.of(request.getBookingDate(), startTime);
-        if (bookingDateTime.isBefore(LocalDateTime.now())) {
+        if (bookingDateTime.isBefore(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime())) {
             throw new AppException(ErrorCode.BOOKING_DATE_IN_PAST);
         }
 
@@ -222,8 +223,7 @@ public class BookingService {
                     customer, request.getBookingDate(), timeSlot, id)) {
                 throw new AppException(ErrorCode.BOOKING_TIME_CONFLICT);
             }
-            Schedule updatedSchedule = validateAndUpdateSchedule(
-                    existingBooking, specialist.getUserId(), request.getBookingDate(), startTime, endTime);
+            validateAndUpdateSchedule(existingBooking, specialist.getUserId(), request.getBookingDate(), startTime, endTime);
 
             // Xóa lịch cũ, loại trừ booking hiện tại
             if (!existingBooking.getBookingDate().equals(request.getBookingDate()) ||
@@ -237,7 +237,7 @@ public class BookingService {
         existingBooking.setServices(services);
         existingBooking.setBookingDate(request.getBookingDate());
         existingBooking.setTimeSlot(timeSlot);
-        existingBooking.setUpdatedAt(LocalDateTime.now());
+        existingBooking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
 
         Booking updatedBooking = bookingRepository.save(existingBooking);
 
@@ -270,12 +270,12 @@ public class BookingService {
         LocalDateTime bookingStart = LocalDateTime.of(booking.getBookingDate(), startTime);
 
         long cancelHoursLimit = isHighRole(currentUser.getRole()) ? 0 : 12;
-        if (Duration.between(LocalDateTime.now(), bookingStart).toHours() < cancelHoursLimit) {
+        if (Duration.between(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime(), bookingStart).toHours() < cancelHoursLimit) {
             throw new AppException(ErrorCode.BOOKING_CANCEL_TIME_EXPIRED);
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         bookingRepository.save(booking);
 
         // Xóa lịch, loại trừ booking hiện tại
@@ -310,7 +310,7 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         bookingRepository.save(booking);
 
         return bookingMapper.toResponse(booking);
@@ -324,9 +324,9 @@ public class BookingService {
             throw new AppException(ErrorCode.BOOKING_NOT_EXISTED);
         }
 
-        booking.setCheckInTime(LocalDateTime.now());
+        booking.setCheckInTime(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         booking.setStatus(BookingStatus.IN_PROGRESS);
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         bookingRepository.save(booking);
 
         String subject = "Xác nhận Check-in tại Beautya";
@@ -357,9 +357,9 @@ public class BookingService {
         }
 
         booking.setPaymentStatus(payment.getStatus());
-        booking.setCheckOutTime(LocalDateTime.now());
+        booking.setCheckOutTime(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         booking.setStatus(BookingStatus.COMPLETED);
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
         bookingRepository.save(booking);
 
         String subject = "Hoàn tất dịch vụ tại Beautya!";
@@ -491,13 +491,13 @@ public class BookingService {
 
     public BigDecimal getDailyRevenue(LocalDate date) {
         return bookingRepository.sumTotalPriceByBookingDateAndStatus(
-                date != null ? date : LocalDate.now(),
+                date != null ? date : ZonedDateTime.now(VIETNAM_ZONE).toLocalDate(),
                 BookingStatus.COMPLETED
         );
     }
 
     public BigDecimal getWeeklyRevenue(LocalDate dateInWeek) {
-        LocalDate startOfWeek = (dateInWeek != null ? dateInWeek : LocalDate.now())
+        LocalDate startOfWeek = (dateInWeek != null ? dateInWeek : ZonedDateTime.now(VIETNAM_ZONE).toLocalDate())
                 .with(DayOfWeek.MONDAY);
         LocalDate endOfWeek = startOfWeek.plusDays(6);
 
@@ -551,13 +551,13 @@ public class BookingService {
 
     @Scheduled(fixedRate = 300000) // Chạy mỗi 5 phút
     public void autoCancelPendingBookings() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(AUTO_CANCEL_MINUTES);
+        LocalDateTime threshold = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().minusMinutes(AUTO_CANCEL_MINUTES);
         List<Booking> pendingBookings = bookingRepository.findByStatusAndCreatedAtBefore(
                 BookingStatus.PENDING, threshold);
 
         for (Booking booking : pendingBookings) {
             booking.setStatus(BookingStatus.CANCELLED);
-            booking.setUpdatedAt(LocalDateTime.now());
+            booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
             bookingRepository.save(booking);
 
             // Xóa lịch, loại trừ booking hiện tại
@@ -578,13 +578,13 @@ public class BookingService {
 
     @Scheduled(cron = "0 0 1 * * ?") // Chạy lúc 1:00 AM mỗi ngày
     public void autoCancelExpiredBookings() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate yesterday = ZonedDateTime.now(VIETNAM_ZONE).toLocalDate().minusDays(1);
         List<Booking> expiredBookings = bookingRepository.findByBookingDateBeforeAndStatusIn(
                 yesterday, List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS));
 
         for (Booking booking : expiredBookings) {
             booking.setStatus(BookingStatus.CANCELLED);
-            booking.setUpdatedAt(LocalDateTime.now());
+            booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
             bookingRepository.save(booking);
 
             // Xóa lịch, loại trừ booking hiện tại
@@ -621,8 +621,8 @@ public class BookingService {
                 .phone(request.getCustomerPhone() != null ? request.getCustomerPhone() : "N/A")
                 .role(Role.GUEST)
                 .status("TEMPORARY")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime())
+                .updatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime())
                 .password(null)
                 .build();
 
@@ -663,8 +663,8 @@ public class BookingService {
         }
 
         LocalDateTime bookingDateTime = LocalDateTime.of(request.getBookingDate(), startTime);
-        LocalDateTime maxBookingDate = LocalDateTime.now().plusDays(MAX_BOOKING_DAYS_IN_ADVANCE);
-        if (bookingDateTime.isBefore(LocalDateTime.now())) {
+        LocalDateTime maxBookingDate = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().plusDays(MAX_BOOKING_DAYS_IN_ADVANCE);
+        if (bookingDateTime.isBefore(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime())) {
             throw new AppException(ErrorCode.BOOKING_DATE_IN_PAST);
         }
         if (bookingDateTime.isAfter(maxBookingDate)) {
@@ -699,8 +699,8 @@ public class BookingService {
         booking.setTimeSlot(timeSlot);
         booking.setStatus(BookingStatus.PENDING);
         booking.setPaymentStatus(PaymentStatus.PENDING);
-        booking.setCreatedAt(LocalDateTime.now());
-        booking.setUpdatedAt(LocalDateTime.now());
+        booking.setCreatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
+        booking.setUpdatedAt(ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime());
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -721,7 +721,7 @@ public class BookingService {
 
     @Scheduled(cron = "0 0 1 * * ?") // Chạy lúc 1:00 AM mỗi ngày
     public void autoDeleteTemporaryGuests() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(1);
+        LocalDateTime threshold = ZonedDateTime.now(VIETNAM_ZONE).toLocalDateTime().minusDays(1);
         List<User> expiredGuests = userRepository.findTemporaryGuestsBefore(threshold);
 
         for (User guest : expiredGuests) {
@@ -835,6 +835,7 @@ public class BookingService {
     }
 
     private String buildCheckInEmail(String customerName, String specialistName, LocalDateTime checkInTime) {
+        String formattedCheckInTime = checkInTime.atZone(VIETNAM_ZONE).format(DATE_TIME_FORMATTER);
         return "<!DOCTYPE html>" +
                 "<html><head><style>" +
                 "body { font-family: Arial, sans-serif; color: #333; }" +
@@ -848,7 +849,7 @@ public class BookingService {
                 "<div class='content'>" +
                 "<p>Xin chào " + customerName + ",</p>" +
                 "<p>Bạn đã check-in thành công tại Beautya với chuyên viên <strong>" + specialistName + "</strong>.</p>" +
-                "<p><strong>Thời gian:</strong> " + checkInTime + "</p>" +
+                "<p><strong>Thời gian:</strong> " + formattedCheckInTime + "</p>" +
                 "<p>Chúc bạn có trải nghiệm tuyệt vời!</p>" +
                 "</div>" +
                 "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
@@ -856,6 +857,7 @@ public class BookingService {
     }
 
     private String buildCheckOutEmail(String customerName, String specialistName, LocalDateTime checkOutTime) {
+        String formattedCheckOutTime = checkOutTime.atZone(VIETNAM_ZONE).format(DATE_TIME_FORMATTER);
         return "<!DOCTYPE html>" +
                 "<html><head><style>" +
                 "body { font-family: Arial, sans-serif; color: #333; }" +
@@ -869,7 +871,7 @@ public class BookingService {
                 "<div class='content'>" +
                 "<p>Xin chào " + customerName + ",</p>" +
                 "<p>Bạn đã hoàn tất dịch vụ tại Beautya với chuyên viên <strong>" + specialistName + "</strong>.</p>" +
-                "<p><strong>Giờ Check-out:</strong> " + checkOutTime + "</p>" +
+                "<p><strong>Giờ Check-out:</strong> " + formattedCheckOutTime + "</p>" +
                 "<p>Cảm ơn bạn đã tin tưởng Beautya! Nếu bạn muốn, hãy để lại phản hồi tại: <a href='" + feedbackLink + "'>Gửi phản hồi</a></p>" +
                 "</div>" +
                 "<div class='footer'>© 2025 Beautya. All rights reserved.</div>" +
