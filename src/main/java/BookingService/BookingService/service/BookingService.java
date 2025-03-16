@@ -55,7 +55,6 @@ public class BookingService {
     private String feedbackLink;
     private final UserService userService;
 
-    // Phương thức chính (CRUD và nghiệp vụ chính)
     public BookingResponse createBooking(BookingRequest request) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUserEmail = authentication.getName();
@@ -374,7 +373,6 @@ public class BookingService {
         return bookingMapper.toResponse(booking);
     }
 
-    // Phương thức phụ trợ (Helper)
     private User findAvailableSpecialist(LocalDate bookingDate, LocalTime startTime, LocalTime endTime) {
         List<User> specialists = userRepository.findByRoleAndStatus(Role.SPECIALIST, "ACTIVE");
         if (specialists.isEmpty()) {
