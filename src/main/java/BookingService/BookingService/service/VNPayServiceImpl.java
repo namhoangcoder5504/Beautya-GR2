@@ -47,6 +47,7 @@ public class VNPayServiceImpl implements VNPayService {
     private static final String DEFAULT_SUCCESS_REDIRECT_URL = "https://yourfrontenddomain.com/mybooking";
     private static final String DEFAULT_FAILED_REDIRECT_URL = "https://yourfrontenddomain.com/mybooking";
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final DateTimeFormatter VNPAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     @Override
     @Transactional
@@ -95,12 +96,11 @@ public class VNPayServiceImpl implements VNPayService {
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
         ZonedDateTime now = ZonedDateTime.now(VIETNAM_ZONE);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-        String vnp_CreateDate = now.format(formatter);
+        String vnp_CreateDate = now.format(VNPAY_DATE_FORMATTER);
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
         ZonedDateTime expireDate = now.plusMinutes(30);
-        String vnp_ExpireDate = expireDate.format(formatter);
+        String vnp_ExpireDate = expireDate.format(VNPAY_DATE_FORMATTER);
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
 
         List fieldNames = new ArrayList(vnp_Params.keySet());
@@ -147,8 +147,7 @@ public class VNPayServiceImpl implements VNPayService {
             paymentRepository.save(existingPayment);
         }
 
-        // Thêm log để kiểm tra thời gian thực tế
-        log.info("Server TimeZone: {}", TimeZone.getDefault().getID());
+        log.info("Server TimeZone: {}", ZoneId.systemDefault().getId());
         log.info("Current Time (Asia/Ho_Chi_Minh): {}", now);
         log.info("vnp_CreateDate: {}", vnp_CreateDate);
         log.info("vnp_ExpireDate: {}", vnp_ExpireDate);
